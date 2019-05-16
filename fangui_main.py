@@ -1,11 +1,12 @@
 from PIL import Image, ImageEnhance, ImageFilter
 from PyQt5 import QtCore, QtGui, QtWidgets
+from qimage2ndarray import array2qimage
 from fanGUI_Project import Ui_ReconstructionGUI
 from PhantomSelect_Window import selectPhantom
 import math
 import numpy as np
 import sys
-import traceback
+import traceback#
 import pyconrad
 pyconrad.setup_pyconrad()
 from edu.stanford.rsl.conrad.data.numeric import Grid2D, Grid2DComplex, NumericPointwiseOperators
@@ -630,9 +631,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_phantom_in_gv(self, image):
-        img_Phantom = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
-        pix_ImgPhantom = QtGui.QPixmap(img_Phantom)
-        self.gpi_phantom = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantom)
+        self.gpi_phantom = array2QPixmapItem(image)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
         gs_ImgPhantom.addItem(self.gpi_phantom)
         self.gV_Phantom.setScene(gs_ImgPhantom)
@@ -667,9 +666,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_phantom_fft_in_gv(self, image):
-        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
-        pix_ImgPhantomfft = QtGui.QPixmap(img_fft)
-        self.gpi_phantom_fft = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantomfft)
+        self.gpi_phantom_fft = array2QPixmapItem(image)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
         gs_ImgPhantom.addItem(self.gpi_phantom_fft)
         self.gV_Phantom_FFT.setScene(gs_ImgPhantom)
@@ -679,9 +676,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
         self.resizeEvent()
 
     def load_sino_in_gv(self, image):
-        img_sino = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
-        pix_ImgSino = QtGui.QPixmap(img_sino)
-        self.gpi_sino = QtWidgets.QGraphicsPixmapItem(pix_ImgSino)
+        self.gpi_sino = array2QPixmapItem(image)
         gs_ImgSino = QtWidgets.QGraphicsScene()
         gs_ImgSino.addItem(self.gpi_sino)
         self.gV_Sinogram.setStyleSheet("background:black")
@@ -692,9 +687,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_sino_fft_in_gv(self, image):
-        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
-        pix_ImgPhantomfft = QtGui.QPixmap(img_fft)
-        self.gpi_sino_fft = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantomfft)
+        self.gpi_sino_fft = array2QPixmapItem(image)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
         gs_ImgPhantom.addItem(self.gpi_sino_fft)
         self.gV_SinogramFFT.setScene(gs_ImgPhantom)
@@ -705,9 +698,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_reco_in_gv(self, image):
-        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
-        pix_ImgPhantomfft = QtGui.QPixmap(img_fft)
-        self.gpi_back = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantomfft)
+        self.gpi_back = array2QPixmapItem(image)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
         gs_ImgPhantom.addItem(self.gpi_back)
         self.gV_Backproj.setScene(gs_ImgPhantom)
@@ -720,9 +711,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_reco_fft_in_gv(self, image):
-        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
-        pix_ImgPhantomfft = QtGui.QPixmap(img_fft)
-        self.gpi_back_fft = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantomfft)
+        self.gpi_back_fft = array2QPixmapItem(image)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
         gs_ImgPhantom.addItem(self.gpi_back_fft)
         self.gV_Backproj_FFT.setScene(gs_ImgPhantom)
@@ -748,6 +737,10 @@ class Window(QtWidgets.QMainWindow):
     def resizeEvent(self, event):
         self.resized.emit()
         return super(Window, self).resizeEvent(event)
+
+
+def array2QPixmapItem(image):
+    return QtWidgets.QGraphicsPixmapItem(QtGui.QPixmap(array2qimage(image.astype(np.uint8))))
 
 
 if __name__ == '__main__':
