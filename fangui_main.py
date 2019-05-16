@@ -2,11 +2,16 @@ from PIL import Image, ImageEnhance, ImageFilter
 from PyQt5 import QtCore, QtGui, QtWidgets
 from fanGUI_Project import Ui_ReconstructionGUI
 from PhantomSelect_Window import selectPhantom
-from pyconrad import *
 import math
 import numpy as np
 import sys
-
+import traceback
+import pyconrad
+pyconrad.setup_pyconrad()
+from edu.stanford.rsl.conrad.data.numeric import Grid2D, Grid2DComplex, NumericPointwiseOperators
+from edu.stanford.rsl.tutorial.fan import FanBeamProjector2D, FanBeamBackprojector2D, CosineFilter
+from edu.stanford.rsl.tutorial.filters import RamLakKernel
+from edu.stanford.rsl.tutorial.fan.redundancy import ParkerWeights
 
 
 class fanbeam_main(Ui_ReconstructionGUI):
@@ -19,7 +24,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
     def __init__(self, MainWindow):
         self.MainWindow = MainWindow
-        self.start_pyconrad()
+        #self.start_pyconrad()
 
         ##somehow tracback is disabled by default,
         ##the following reactivats it
@@ -113,23 +118,23 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
     def on_open_phantom(self,point):
         if self.phantom_loaded:
-            self.pyconrad_instance['Grid2D'].from_numpy(self.phantom_grayscale).show("Phantom");
+            Grid2D.from_numpy(self.phantom_grayscale).show("Phantom")
     def on_open_phantom_fft(self, point):
         if self.phantom_fft_loaded:
-            self.pyconrad_instance['Grid2D'].from_numpy(self.phantom_fft).show("FFT des Phantoms");
+            Grid2D.from_numpy(self.phantom_fft).show("FFT des Phantoms");
     def on_open_sinogram(self, point):
         if self.sinogram_loaded:
-            self.pyconrad_instance['Grid2D'].from_numpy(self.fanogramarray).show("Fanogram");
+            Grid2D.from_numpy(self.fanogramarray).show("Fanogram");
 
     def on_open_sinogram_fft(self, point):
         if self.sino_fft_loaded:
-            self.pyconrad_instance['Grid2D'].from_numpy(self.fanFFTarray).show("FFT des Fanograms");
+            Grid2D.from_numpy(self.fanFFTarray).show("FFT des Fanograms");
     def on_open_back(self, point):
         if self.back_loaded:
-            self.pyconrad_instance['Grid2D'].from_numpy(self.backarray).show("Rekonstruktion");
+            Grid2D.from_numpy(self.backarray).show("Rekonstruktion");
     def on_open_back_fft(self, point):
         if self.back_fft_loaded:
-            self.pyconrad_instance['Grid2D'].from_numpy(self.backFFTarray).show("FFT der Rekonstruktion");
+            Grid2D.from_numpy(self.backFFTarray).show("FFT der Rekonstruktion");
 
 
 
@@ -280,8 +285,8 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
     def generate_fft_of_phantom(self):
         ###need self.phantom_fft as we might open it somewhen with imageJ
-        self.phantom_grid = self.pyconrad_instance['Grid2D'].from_numpy(self.phantom_grayscale)
-        phantom_fft = self.pyconrad_instance.classes.stanford.rsl.conrad.data.numeric.Grid2DComplex(self.phantom_grid)
+        self.phantom_grid = Grid2D.from_numpy(self.phantom_grayscale)
+        phantom_fft = Grid2DComplex(self.phantom_grid)
         phantom_fft.transformForward()
         phantom_fft.fftshift()
         phantom_fft_magnitude = phantom_fft.getMagnSubGrid(0, 0, phantom_fft.getWidth(), phantom_fft.getHeight())
@@ -337,7 +342,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
         print('i do roentgen')
         self.pB_Reconstruction.setDisabled(False)
         ####Forward Projection
-        ForwardProj = self.pyconrad_instance.classes.stanford.rsl.tutorial.fan.FanBeamProjector2D(self.focalLength, self.maxBeta, self.deltaBeta, self.maxT, self.deltaT)
+        ForwardProj = FanBeamProjector2D(self.focalLength, self.maxBeta, self.deltaBeta, self.maxT, self.deltaT)
         self.fan_projector_thread.init(self.use_cl, ForwardProj, self.phantom_grid)
         self.fan_projector_thread.start()
 
@@ -406,23 +411,24 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def cosine_parker(self):
-        self.fanogram_cosine_parker = self.pyconrad_instance.classes.stanford.rsl.conrad.data.numeric.NumericPointwiseOperators.multipliedBy(
-        self.fanogram_cosine_filtered, self.parker_weight)
+        self.fanogram_cosine_parker = NumericPointwiseOperators.multipliedBy(
+            self.fanogram_cosine_filtered, self.parker_weight
+        )
 
     def ramlak_parker(self):
-        self.fanogram_ramlak_parker = self.pyconrad_instance.classes.stanford.rsl.conrad.data.numeric.NumericPointwiseOperators.multipliedBy(
-            self.fanogram_ramlak, self.parker_weight)
+        self.fanogram_ramlak_parker = NumericPointwiseOperators.multipliedBy(self.fanogram_ramlak, self.parker_weight)
 
 
     def ramlak_cosine_parker(self):
-        self.fanogram_full_filtered = self.pyconrad_instance.classes.stanford.rsl.conrad.data.numeric.NumericPointwiseOperators.multipliedBy(
-            self.fanogram_ramlak_cosine, self.parker_weight)
+        self.fanogram_full_filtered = NumericPointwiseOperators.multipliedBy(
+            self.fanogram_ramlak_cosine, self.parker_weight
+        )
 
 
     def ramlak_cosine(self):
         sizeimage = self.fanogram.getSize()[1]
-        cosine = self.pyconrad_instance.classes.stanford.rsl.tutorial.fan.CosineFilter(self.focalLength, self.maxT, self.deltaT)
-        ramlak = self.pyconrad_instance.classes.stanford.rsl.tutorial.filters.RamLakKernel((int)(self.maxT / self.deltaT),
+        cosine = CosineFilter(self.focalLength, self.maxT, self.deltaT)
+        ramlak = RamLakKernel((int)(self.maxT / self.deltaT),
                                                                                       self.deltaT)
         self.fanogram_ramlak_cosine = self.fanogram.clone()
         for theta in range(0, sizeimage):
@@ -458,7 +464,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def fanFFT(self):
-        grid2dcomplex = self.pyconrad_instance.classes.stanford.rsl.conrad.data.numeric.Grid2DComplex(self.fanogram)
+        grid2dcomplex = Grid2DComplex(self.fanogram)
         grid2dcomplex.transformForward()
         grid2dcomplex.fftshift()
         ####convert complex grid 2d to grid 2d
@@ -490,8 +496,8 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def parkerweight(self):
-        self.parker_weight = self.pyconrad_instance.classes.stanford.rsl.tutorial.fan.redundancy.ParkerWeights(self.focalLength, self.maxT, self.deltaT, self.maxBeta, self.deltaBeta)
-        self.fanogram_parker = self.pyconrad_instance.classes.stanford.rsl.conrad.data.numeric.NumericPointwiseOperators.multipliedBy(self.fanogram, self.parker_weight)
+        self.parker_weight = ParkerWeights(self.focalLength, self.maxT, self.deltaT, self.maxBeta, self.deltaBeta)
+        self.fanogram_parker = NumericPointwiseOperators.multipliedBy(self.fanogram, self.parker_weight)
 
 
     def parker_weight_check(self):
@@ -548,7 +554,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
     def ramlakfilter(self):
         sizeimage = self.fanogram.getSize()[1]
-        ramlak = self.pyconrad_instance.classes.stanford.rsl.tutorial.filters.RamLakKernel((int)(self.maxT / self.deltaT), self.deltaT)
+        ramlak = RamLakKernel((int)(self.maxT / self.deltaT), self.deltaT)
         self.fanogram_ramlak = self.fanogram.clone()
         for theta in range(0, sizeimage):
             ramlak.applyToGrid(self.fanogram_ramlak.getSubGrid(theta))
@@ -559,7 +565,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
     def cosinefilter(self):
         sizeimage = self.fanogram.getSize()[1]
-        cosine = self.pyconrad_instance.classes.stanford.rsl.tutorial.fan.CosineFilter(self.focalLength, self.maxT, self.deltaT)
+        cosine = CosineFilter(self.focalLength, self.maxT, self.deltaT)
         self.fanogram_cosine_filtered = self.fanogram.clone()
         for theta in range(0, sizeimage):
             cosine.applyToGrid(self.fanogram_cosine_filtered.getSubGrid(theta))
@@ -578,7 +584,9 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def set_max_beta_text(self):
-        self.label_delta_2.setText("Maximale Angulation: {}/{}".format(self.hScrollBar_maxbeta.maximum(),int(math.degrees(self.maxBeta))))
+        self.label_delta_2.setText(
+            "Maximale Angulation: {}/{}".format(self.hScrollBar_maxbeta.maximum(),int(math.degrees(self.maxBeta)))
+        )
 
 
     def on_max_t_changed(self):
@@ -589,7 +597,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
         self.pB_Reconstruction.setDisabled(True)
         height = self.phantom_grayscale.shape[0]
         width = self.phantom_grayscale.shape[1]
-        fan_beam_backprojector = self.pyconrad_instance.classes.stanford.rsl.tutorial.fan.FanBeamBackprojector2D(self.focalLength, self.deltaT, self.deltaBeta, width, height)
+        fan_beam_backprojector = FanBeamBackprojector2D(self.focalLength, self.deltaT, self.deltaBeta, width, height)
         self.backprojector_thread.init(self.use_cl, fan_beam_backprojector, self.current_fanogram)
         self.backprojector_thread.start()
 
@@ -607,7 +615,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
     ####Fourier transform of the phantom
     def backFFT(self, back):
-        grid2dcomplex = self.pyconrad_instance.classes.stanford.rsl.conrad.data.numeric.Grid2DComplex(back)
+        grid2dcomplex = Grid2DComplex(back)
         grid2dcomplex.transformForward()
         grid2dcomplex.fftshift()
         ####convert complex grid 2d to grid 2d
@@ -619,8 +627,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_phantom_in_gv(self, image):
-        img_Phantom = QtGui.QImage(image.data, image.shape[1], image.shape[0],
-                                   QtGui.QImage.Format_Grayscale8)
+        img_Phantom = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
         pix_ImgPhantom = QtGui.QPixmap(img_Phantom)
         self.gpi_phantom = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantom)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
@@ -657,8 +664,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_phantom_fft_in_gv(self, image):
-        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0],
-                                   QtGui.QImage.Format_Grayscale8)
+        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
         pix_ImgPhantomfft = QtGui.QPixmap(img_fft)
         self.gpi_phantom_fft = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantomfft)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
@@ -670,8 +676,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
         self.resizeEvent()
 
     def load_sino_in_gv(self, image):
-        img_sino = QtGui.QImage(image.data, image.shape[1], image.shape[0],
-                               QtGui.QImage.Format_Grayscale8)
+        img_sino = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
         pix_ImgSino = QtGui.QPixmap(img_sino)
         self.gpi_sino = QtWidgets.QGraphicsPixmapItem(pix_ImgSino)
         gs_ImgSino = QtWidgets.QGraphicsScene()
@@ -684,8 +689,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_sino_fft_in_gv(self, image):
-        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0],
-                               QtGui.QImage.Format_Grayscale8)
+        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
         pix_ImgPhantomfft = QtGui.QPixmap(img_fft)
         self.gpi_sino_fft = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantomfft)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
@@ -698,8 +702,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_reco_in_gv(self, image):
-        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0],
-                               QtGui.QImage.Format_Grayscale8)
+        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
         pix_ImgPhantomfft = QtGui.QPixmap(img_fft)
         self.gpi_back = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantomfft)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
@@ -714,8 +717,7 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
 
     def load_reco_fft_in_gv(self, image):
-        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0],
-                               QtGui.QImage.Format_Grayscale8)
+        img_fft = QtGui.QImage(image.data, image.shape[1], image.shape[0], QtGui.QImage.Format_Grayscale8)
         pix_ImgPhantomfft = QtGui.QPixmap(img_fft)
         self.gpi_back_fft = QtWidgets.QGraphicsPixmapItem(pix_ImgPhantomfft)
         gs_ImgPhantom = QtWidgets.QGraphicsScene()
