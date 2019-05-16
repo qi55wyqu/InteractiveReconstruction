@@ -237,7 +237,10 @@ class fanbeam_main(Ui_ReconstructionGUI):
 
         from Threads.image_capture_thread import image_capture_thread as ict
         self.image_capture_thread = ict()
-        self.image_capture_thread.image_capture_finsihed.connect(self.on_photo_finished)
+        if not self.image_capture_thread.setup_successful:
+            self.pB_videocapture.setDisabled(True)
+        else:
+            self.image_capture_thread.image_capture_finsihed.connect(self.on_photo_finished)
 
     def resizeEvent(self):
         if self.phantom_loaded:

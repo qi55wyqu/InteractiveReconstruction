@@ -13,7 +13,18 @@ class image_capture_thread(QtCore.QThread):
         QtCore.QThread.__init__(self)
 
         pygame.camera.init()
-        self.cam = pygame.camera.Camera()
+        self.setup_successful = False
+        cam_list = pygame.camera.list_cameras()
+        if not len(cam_list):
+            print('No cameras found')
+            return
+        for cam in cam_list:
+            try:
+                self.cam = pygame.camera.Camera(device=cam, size=(640, 480))
+                self.setup_successful = True
+            except Exception:
+                continue
+        #self.cam = pygame.camera.Camera()
 
 
     def scale_to_0_255(self,image):
