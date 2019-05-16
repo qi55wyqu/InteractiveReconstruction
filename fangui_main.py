@@ -751,8 +751,7 @@ class Window(QtWidgets.QMainWindow):
 
 
 if __name__ == '__main__':
-
-
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling, True)
     app = QtWidgets.QApplication(sys.argv)
     wid_FanRecont = Window()
     ui = fanbeam_main(wid_FanRecont)
